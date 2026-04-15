@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Executive Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #12151c;
+    --surface2: #1a1f2b;
+    --border: #242938;
+    --accent: #e8ff47;
+    --accent2: #47c8ff;
+    --accent3: #ff6b47;
+    --accent4: #b847ff;
+    --text: #e8eaf0;
+    --muted: #5c6480;
+    --danger: #ff4747;
+    --ok: #47ff9c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 1000;
+    opacity: 0.4;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 36px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 20px; }
+
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .logo-mark::after {
+    content: '';
+    width: 14px; height: 14px;
+    background: var(--bg);
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }
+
+  .header-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .header-sub {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-meta {
+    display: flex; gap: 24px; align-items: center;
+  }
+
+  .status-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; color: var(--ok);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  .status-pill::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--ok);
+    border-radius: 50%;
+    box-shadow: 0 0 6px var(--ok);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .timestamp {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+
+  main {
+    padding: 32px 36px;
+    max-width: 1600px;
+    margin: 0 auto;
+  }
+
+  /* KPI row */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+
+  .kpi:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-color, var(--accent));
+  }
+
+  .kpi-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    color: var(--kpi-color, var(--accent));
+    line-height: 1;
+  }
+
+  .kpi-detail {
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Charts grid */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.6s ease 0.1s both;
+  }
+
+  .charts-grid-bottom {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+    animation: fadeUp 0.6s ease 0.2s both;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+    position: relative;
+  }
+
+  .chart-card.span2 { grid-column: span 2; }
+
+  .card-label {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .badge-yellow { background: rgba(232,255,71,0.12); color: var(--accent); border: 1px solid rgba(232,255,71,0.2); }
+  .badge-blue   { background: rgba(71,200,255,0.12); color: var(--accent2); border: 1px solid rgba(71,200,255,0.2); }
+  .badge-red    { background: rgba(255,107,71,0.12); color: var(--accent3); border: 1px solid rgba(255,107,71,0.2); }
+  .badge-purple { background: rgba(184,71,255,0.12); color: var(--accent4); border: 1px solid rgba(184,71,255,0.2); }
+
+  canvas { max-height: 240px; }
+
+  /* Fleet table */
+  .table-section {
+    animation: fadeUp 0.6s ease 0.3s both;
+  }
+
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .table-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .filter-tabs {
+    display: flex;
+    gap: 4px;
+  }
+
+  .ftab {
+    font-size: 9px;
+    padding: 5px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-family: 'IBM Plex Mono', monospace;
+    transition: all 0.15s;
+  }
+
+  .ftab.active, .ftab:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232,255,71,0.06);
+  }
+
+  .fleet-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+
+  .fleet-table th {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .fleet-table th:hover { color: var(--accent); }
+
+  .fleet-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(36,41,56,0.6);
+    white-space: nowrap;
+  }
+
+  .fleet-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .make-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .tag-FD { background: rgba(255,107,71,0.15); color: #ff8a6a; }
+  .tag-GM { background: rgba(71,200,255,0.15); color: var(--accent2); }
+  .tag-TY { background: rgba(232,255,71,0.15); color: var(--accent); }
+  .tag-HO { background: rgba(71,255,156,0.15); color: var(--ok); }
+  .tag-CR { background: rgba(184,71,255,0.15); color: var(--accent4); }
+  .tag-HY { background: rgba(255,200,47,0.15); color: #ffc82f; }
+
+  .cov-yes { color: var(--ok); }
+  .cov-no  { color: var(--danger); }
+
+  .miles-bar-wrap {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .miles-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border);
+    flex: 1;
+    min-width: 60px;
+    position: relative;
+    overflow: hidden;
+  }
+  .miles-bar-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    border-radius: 2px;
+  }
+
+  .color-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    flex-shrink: 0;
+  }
+
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .page-btns { display: flex; gap: 4px; }
+  .page-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    transition: all 0.15s;
+  }
+  .page-btn:hover, .page-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .page-btn:disabled { opacity: 0.3; cursor: default; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-mark"></div>
+    <div>
+      <div class="header-title">Fleet Command</div>
+      <div class="header-sub">Executive Intelligence Dashboard</div>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="status-pill">Live</div>
+    <div class="timestamp" id="ts"></div>
+  </div>
+</header>
+
+<main>
+  <div class="kpi-grid" id="kpiGrid"></div>
+  <div class="charts-grid" id="chartsTop"></div>
+  <div class="charts-grid-bottom" id="chartsBottom"></div>
+  <div class="table-section">
+    <div class="table-header">
+      <div class="table-title">Fleet Registry</div>
+      <div class="filter-tabs" id="filterTabs"></div>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="fleet-table">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="pageInfo"></span>
+      <div class="page-btns" id="pageBtns"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─── DATA ────────────────────────────────────────────────────────────────────
+const RAW = [
+  ["FD06MTG001","Black","Smith",40326.8,50000],
+  ["FD06MTG002","White","McCall",44974.8,50000],
+  ["FD08MTG003","Green","Lyon",44946.5,50000],
+  ["FD08MTG004","Black","Jones",37558.8,50000],
+  ["FD08MTG005","White","Smith",36438.5,50000],
+  ["FDO6FCS006","Green","Ewenty",46311.4,75000],
+  ["FD06FCS007","Green","Lyon",52229.5,75000],
+  ["FD09FCS008","Black","Howard",35137,75000],
+  ["FD13FCS009","Black","Smith",27637.1,75000],
+  ["FD13FCS010","White","Praulty",27534.8,75000],
+  ["FD12FCS011","White","Yousef",19341.7,75000],
+  ["FD13FCS012","Black","Vizzini",22521.6,75000],
+  ["FD13FCS013","Black","Rodriguez",13682.9,75000],
+  ["GMO9CMR014","White","Santos",28464.8,100000],
+  ["GM12CMR015","Black","Bard",19421.1,100000],
+  ["GM14CMR016","White","Torrens",14289.6,100000],
+  ["GM10SLV017","Black","Hulinski",31144.4,100000],
+  ["GM98SLV018","Black","Santos",83162.7,100000],
+  ["GM00SLV019","Blue","Vizzini",80685.8,100000],
+  ["TY96CAM020","Green","Chan",114660.6,100000],
+  ["TY98CAM021","Black","Swartz",93382.6,100000],
+  ["TY00CAM022","Green","Ewenty",85928,100000],
+  ["TY02CAM023","Black","Smith",67829.1,100000],
+  ["TY09CAM024","White","Howard",48114.2,100000],
+  ["TY02COR025","Red","Gaul",64467.4,100000],
+  ["TY03COR026","Black","Gaul",73444.4,100000],
+  ["TY14COR027","Blue","Praulty",17556.3,100000],
+  ["TY12COR028","Black","Santos",29601.9,100000],
+  ["TY12CAM029","Blue","Chan",22128.2,100000],
+  ["HO99CIV030","White","Rodriguez",82374,75000],
+  ["HO01CIV031","Blue","Jones",69891.9,75000],
+  ["HO10CIV032","Blue","Torrens",22573,75000],
+  ["HO10CIV033","Black","Swartz",33477.2,75000],
+  ["HO11CIV034","Black","Lyon",30555.3,75000],
+  ["HO12CIV035","Black","Hulinski",24513.2,75000],
+  ["HO13CIV036","Black","Chan",13867.6,75000],
+  ["HOO5ODY037","White","Howard",60389.5,100000],
+  ["HO07ODY038","Black","Swartz",50854.1,100000],
+  ["HO08ODY039","White","Rodriguez",42504.6,100000],
+  ["HO010ODY040","Black","Smith",68658.9,100000],
+  ["HO14ODY041","Black","McCall",3708.1,100000],
+  ["CR04PTC042","Blue","Smith",64542,75000],
+  ["CR07PTC043","Green","Gaul",42074.2,75000],
+  ["CR11PTC044","Black","Vizzini",27394.2,75000],
+  ["CR99CAR045","Green","Hulinski",79420.6,75000],
+  ["CR00CAR046","Black","Jones",77243.1,75000],
+  ["CR04CAR047","White","Bard",72527.2,75000],
+  ["CR04CAR048","Red","Bard",52699.4,75000],
+  ["HY11ELA049","Black","Torrens",29102.3,100000],
+  ["HY12ELA050","Blue","McCall",22282,100000],
+  ["HY13ELA051","Black","Praulty",20223.9,100000],
+  ["HY13ELA052","Blue","Ewenty",22188.5,100000],
+];
+
+const MAKES = { FD:"Ford", GM:"General Motors", TY:"Toyota", HO:"Honda", CR:"Chrysler", HY:"Hyundai" };
+const MODELS = {
+  MTG:"Mustang", FCS:"F-Series", CMR:"Camaro", SLV:"Silverado",
+  CAM:"Camry", COR:"Corolla", CIV:"Civic", ODY:"Odyssey",
+  PTC:"Pacifica", CAR:"Caravan", ELA:"Elantra"
+};
+
+function parseId(id) {
+  const clean = id.replace(/O/g, '0'); // fix OCR O→0
+  const makeCode = clean.substring(0,2);
+  const yearStr = clean.substring(2,4);
+  const modelCode = clean.substring(4,7);
+  const yr = parseInt(yearStr, 10);
+  const mfgYear = yr >= 90 ? 1900+yr : 2000+yr;
+  const age = 2025 - mfgYear;
+  return {
+    makeCode,
+    makeFull: MAKES[makeCode] || makeCode,
+    modelCode,
+    modelFull: MODELS[modelCode] || modelCode,
+    mfgYear,
+    age
+  };
+}
+
+const CURRENT_YEAR = 2025;
+const fleet = RAW.map(([id, color, driver, miles, warranty]) => {
+  const p = parseId(id);
+  const mpy = p.age > 0 ? (miles / p.age) : miles;
+  const covered = miles < warranty;
+  return { id, ...p, color, driver, miles, mpy: Math.round(mpy), warranty, covered };
+});
+
+// ─── KPIs ─────────────────────────────────────────────────────────────────────
+const totalVehicles = fleet.length;
+const coveredCount  = fleet.filter(v => v.covered).length;
+const expiredCount  = totalVehicles - coveredCount;
+const avgMiles      = Math.round(fleet.reduce((a,v) => a+v.miles, 0) / totalVehicles);
+const highMileage   = fleet.filter(v => v.miles > 80000).length;
+const avgAge        = (fleet.reduce((a,v) => a+v.age, 0) / totalVehicles).toFixed(1);
+const totalMakes    = [...new Set(fleet.map(v => v.makeCode))].length;
+
+const kpis = [
+  { label:"Total Vehicles",   value: totalVehicles,          detail: `${totalMakes} manufacturers`, color:"var(--accent)" },
+  { label:"Warranty Active",  value: coveredCount,           detail: `${((coveredCount/totalVehicles)*100).toFixed(0)}% of fleet`, color:"var(--ok)" },
+  { label:"Warranty Expired", value: expiredCount,           detail: `${((expiredCount/totalVehicles)*100).toFixed(0)}% require attention`, color:"var(--danger)" },
+  { label:"Avg Mileage",      value: avgMiles.toLocaleString(), detail: "miles per vehicle", color:"var(--accent2)" },
+  { label:"High Mileage (80k+)", value: highMileage,         detail: `${((highMileage/totalVehicles)*100).toFixed(0)}% of fleet`, color:"var(--accent3)" },
+  { label:"Avg Fleet Age",    value: `${avgAge}yr`,          detail: "years in service", color:"var(--accent4)" },
+];
+
+const kpiGrid = document.getElementById('kpiGrid');
+kpis.forEach(k => {
+  kpiGrid.innerHTML += `
+    <div class="kpi" style="--kpi-color:${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-detail">${k.detail}</div>
+    </div>`;
+});
+
+// ─── CHARTS ──────────────────────────────────────────────────────────────────
+const CHART_DEFAULTS = {
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { grid: { color:'rgba(255,255,255,0.04)' }, ticks: { color:'#5c6480', font:{ family:'IBM Plex Mono', size:10 } } },
+    y: { grid: { color:'rgba(255,255,255,0.04)' }, ticks: { color:'#5c6480', font:{ family:'IBM Plex Mono', size:10 } } }
+  },
+  maintainAspectRatio: true,
+  responsive: true,
+};
+
+function makeCtx(id) {
+  return document.getElementById(id).getContext('2d');
+}
+
+// Chart 1: Fleet by Make
+const makeCounts = {};
+fleet.forEach(v => { makeCounts[v.makeFull] = (makeCounts[v.makeFull]||0)+1; });
+const makeColors = ['#e8ff47','#47c8ff','#47ff9c','#ff6b47','#b847ff','#ffc82f'];
+
+// Chart 2: Mileage Distribution (histogram buckets)
+const buckets = [0,20000,40000,60000,80000,100000,120000];
+const bucketLabels = ['0–20k','20–40k','40–60k','60–80k','80–100k','100k+'];
+const bucketCounts = Array(6).fill(0);
+fleet.forEach(v => {
+  const bi = Math.min(Math.floor(v.miles/20000), 5);
+  bucketCounts[bi]++;
+});
+
+// Chart 3: Warranty Coverage by Make
+const makeCov = {};
+fleet.forEach(v => {
+  if (!makeCov[v.makeCode]) makeCov[v.makeCode] = {yes:0,no:0};
+  makeCov[v.makeCode][v.covered?'yes':'no']++;
+});
+
+// Chart 4: Miles/Year vs Age scatter
+// Chart 5: Model distribution bar
+
+document.getElementById('chartsTop').innerHTML = `
+  <div class="chart-card">
+    <div class="card-label">Fleet Composition</div>
+    <div class="card-title">Vehicles by Make <span class="card-badge badge-yellow">${totalVehicles} total</span></div>
+    <canvas id="c1" height="200"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="card-label">Mileage Profile</div>
+    <div class="card-title">Distribution <span class="card-badge badge-blue">histogram</span></div>
+    <canvas id="c2" height="200"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="card-label">Coverage Status</div>
+    <div class="card-title">Warranty by Make <span class="card-badge badge-red">${expiredCount} expired</span></div>
+    <canvas id="c3" height="200"></canvas>
+  </div>`;
+
+document.getElementById('chartsBottom').innerHTML = `
+  <div class="chart-card">
+    <div class="card-label">Utilisation Analysis</div>
+    <div class="card-title">Annual Miles by Model <span class="card-badge badge-purple">avg mi/yr</span></div>
+    <canvas id="c4" height="180"></canvas>
+  </div>
+  <div class="chart-card">
+    <div class="card-label">Warranty Breakdown</div>
+    <div class="card-title">Coverage Split <span class="card-badge badge-yellow">fleet-wide</span></div>
+    <canvas id="c5" height="180"></canvas>
+  </div>`;
+
+// C1 - Doughnut by make
+new Chart(makeCtx('c1'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(makeCounts),
+    datasets: [{ data: Object.values(makeCounts), backgroundColor: makeColors, borderColor:'#0a0c10', borderWidth:3 }]
+  },
+  options: {
+    plugins: {
+      legend: {
+        display: true,
+        position: 'right',
+        labels: { color:'#8890a8', font:{ family:'IBM Plex Mono', size:10 }, boxWidth:12, padding:10 }
+      }
+    },
+    cutout: '65%',
+    maintainAspectRatio: true, responsive: true,
+  }
+});
+
+// C2 - Bar: mileage histogram
+new Chart(makeCtx('c2'), {
+  type:'bar',
+  data: {
+    labels: bucketLabels,
+    datasets: [{
+      data: bucketCounts,
+      backgroundColor: bucketCounts.map((_,i) => `rgba(71,200,255,${0.3 + i*0.1})`),
+      borderColor: '#47c8ff', borderWidth:1, borderRadius:3
+    }]
+  },
+  options: { ...CHART_DEFAULTS }
+});
+
+// C3 - Stacked bar: warranty by make
+const makeKeys = Object.keys(makeCov);
+new Chart(makeCtx('c3'), {
+  type:'bar',
+  data: {
+    labels: makeKeys,
+    datasets: [
+      { label:'Covered', data: makeKeys.map(k=>makeCov[k].yes), backgroundColor:'rgba(71,255,156,0.6)', borderColor:'#47ff9c', borderWidth:1, borderRadius:2 },
+      { label:'Expired', data: makeKeys.map(k=>makeCov[k].no),  backgroundColor:'rgba(255,71,71,0.5)',  borderColor:'#ff4747', borderWidth:1, borderRadius:2 },
+    ]
+  },
+  options: {
+    ...CHART_DEFAULTS,
+    plugins: {
+      legend: { display:true, position:'top', labels:{ color:'#8890a8', font:{family:'IBM Plex Mono',size:9}, boxWidth:10, padding:8 } }
+    },
+    scales: {
+      x: { stacked:true, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5c6480',font:{family:'IBM Plex Mono',size:10}} },
+      y: { stacked:true, grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5c6480',font:{family:'IBM Plex Mono',size:10}} }
+    }
+  }
+});
+
+// C4 - Horizontal bar: avg mpy by model
+const modelMpy = {};
+const modelCount = {};
+fleet.forEach(v => {
+  if (!modelMpy[v.modelFull]) { modelMpy[v.modelFull]=0; modelCount[v.modelFull]=0; }
+  modelMpy[v.modelFull] += v.mpy;
+  modelCount[v.modelFull]++;
+});
+const modelLabels = Object.keys(modelMpy).sort((a,b) => modelMpy[b]/modelCount[b] - modelMpy[a]/modelCount[a]);
+const modelAvg = modelLabels.map(m => Math.round(modelMpy[m]/modelCount[m]));
+const barColors = ['#e8ff47','#47c8ff','#47ff9c','#ff6b47','#b847ff','#ffc82f','#ff4747','#47ffdd','#ffaa47','#aa47ff','#47ff70'];
+
+new Chart(makeCtx('c4'), {
+  type:'bar',
+  data: {
+    labels: modelLabels,
+    datasets: [{
+      data: modelAvg,
+      backgroundColor: modelLabels.map((_,i)=> barColors[i%barColors.length]+'88'),
+      borderColor: modelLabels.map((_,i)=> barColors[i%barColors.length]),
+      borderWidth:1, borderRadius:3
+    }]
+  },
+  options: {
+    ...CHART_DEFAULTS,
+    indexAxis:'y',
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5c6480',font:{family:'IBM Plex Mono',size:9}}},
+      y:{grid:{display:false},ticks:{color:'#8890a8',font:{family:'IBM Plex Mono',size:9}}}
+    }
+  }
+});
+
+// C5 - Doughnut: covered vs expired
+new Chart(makeCtx('c5'), {
+  type:'doughnut',
+  data:{
+    labels:['Covered','Expired'],
+    datasets:[{
+      data:[coveredCount, expiredCount],
+      backgroundColor:['rgba(71,255,156,0.7)','rgba(255,71,71,0.7)'],
+      borderColor:['#47ff9c','#ff4747'], borderWidth:2
+    }]
+  },
+  options:{
+    plugins:{
+      legend:{display:true,position:'bottom',labels:{color:'#8890a8',font:{family:'IBM Plex Mono',size:10},boxWidth:12,padding:12}}
+    },
+    cutout:'62%', maintainAspectRatio:true, responsive:true
+  }
+});
+
+// ─── TABLE ────────────────────────────────────────────────────────────────────
+const colorMap = {
+  Black:'#1a1a2e', White:'#e8eaf0', Green:'#47ff9c', Blue:'#47c8ff',
+  Red:'#ff4747', Silver:'#b0b8cc', Gray:'#7080a0'
+};
+const colorTextMap = {
+  Black:'#8890a8', White:'#0a0c10', Green:'#0a0c10', Blue:'#0a0c10',
+  Red:'#fff', Silver:'#0a0c10', Gray:'#fff'
+};
+
+let tableFilter = 'All';
+let tablePage   = 0;
+const PAGE_SIZE = 12;
+
+const headers = ['ID','Make','Model','Year','Age','Miles','Mi/Yr','Color','Driver','Warranty','Covered'];
+
+document.getElementById('tableHead').innerHTML = `<tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>`;
+
+const filterMakes = ['All', ...Object.keys(MAKES)];
+document.getElementById('filterTabs').innerHTML = filterMakes.map(k =>
+  `<button class="ftab${k==='All'?' active':''}" onclick="setFilter('${k}')">${k==='All'?'All':MAKES[k]||k}</button>`
+).join('');
+
+function setFilter(f) {
+  tableFilter = f; tablePage = 0;
+  document.querySelectorAll('.ftab').forEach(b => b.classList.toggle('active', b.textContent === (f==='All'?'All':MAKES[f]||f)));
+  renderTable();
+}
+
+function setPage(p) { tablePage = p; renderTable(); }
+
+function renderTable() {
+  const data = fleet.filter(v => tableFilter==='All' || v.makeCode===tableFilter);
+  const total = data.length;
+  const start = tablePage * PAGE_SIZE;
+  const slice = data.slice(start, start+PAGE_SIZE);
+  const col = v => colorMap[v.color]||'#333';
+
+  document.getElementById('tableBody').innerHTML = slice.map(v => {
+    const pct = Math.min(v.miles / v.warranty * 100, 100);
+    const barColor = pct > 90 ? '#ff4747' : pct > 70 ? '#ffc82f' : '#47ff9c';
+    return `
+    <tr>
+      <td style="color:var(--muted);font-size:10px">${v.id}</td>
+      <td><span class="make-tag tag-${v.makeCode}">${v.makeCode}</span></td>
+      <td>${v.modelFull}</td>
+      <td>${v.mfgYear}</td>
+      <td style="color:var(--muted)">${v.age}yr</td>
+      <td>
+        <div class="miles-bar-wrap">
+          <span>${v.miles.toLocaleString()}</span>
+          <div class="miles-bar"><div class="miles-bar-fill" style="width:${pct}%;background:${barColor}"></div></div>
+        </div>
+      </td>
+      <td style="color:var(--muted)">${v.mpy.toLocaleString()}</td>
+      <td>
+        <span class="color-dot" style="background:${col(v)};border:1px solid rgba(255,255,255,0.15)"></span>
+        ${v.color}
+      </td>
+      <td>${v.driver}</td>
+      <td style="color:var(--muted)">${v.warranty.toLocaleString()}</td>
+      <td class="${v.covered?'cov-yes':'cov-no'}">${v.covered?'✓ Active':'✗ Expired'}</td>
+    </tr>`;
+  }).join('');
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  document.getElementById('pageInfo').textContent = `Showing ${start+1}–${Math.min(start+PAGE_SIZE,total)} of ${total} vehicles`;
+
+  const pb = document.getElementById('pageBtns');
+  pb.innerHTML = `<button class="page-btn" onclick="setPage(${tablePage-1})" ${tablePage===0?'disabled':''}>←</button>`;
+  for (let i=0;i<totalPages;i++) {
+    pb.innerHTML += `<button class="page-btn${i===tablePage?' active':''}" onclick="setPage(${i})">${i+1}</button>`;
+  }
+  pb.innerHTML += `<button class="page-btn" onclick="setPage(${tablePage+1})" ${tablePage>=totalPages-1?'disabled':''}>→</button>`;
+}
+
+renderTable();
+
+// Timestamp
+const ts = document.getElementById('ts');
+function tick() { ts.textContent = new Date().toLocaleString(); }
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>
